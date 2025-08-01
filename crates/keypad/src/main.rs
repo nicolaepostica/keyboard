@@ -1,5 +1,6 @@
 //! keypad: F1–F12 as media keys, without Fn.
 
+mod autostart;
 mod control;
 
 use std::sync::{Arc, Mutex};
@@ -11,12 +12,16 @@ use keypad_engine::{AppRequest, Backend, Engine, NullBackend, config_path};
 struct Args {
     control: Option<u16>,
     headless: bool,
+    minimized: bool,
+    no_tray: bool,
 }
 
 fn parse_args() -> anyhow::Result<Args> {
     let mut args = Args {
         control: None,
         headless: false,
+        minimized: false,
+        no_tray: false,
     };
     let mut it = std::env::args().skip(1);
     while let Some(a) = it.next() {
@@ -26,8 +31,10 @@ fn parse_args() -> anyhow::Result<Args> {
                 args.control = Some(port.parse().context("--control PORT must be a number")?);
             }
             "--headless" => args.headless = true,
+            "--minimized" => args.minimized = true,
+            "--no-tray" => args.no_tray = true,
             "-h" | "--help" => {
-                println!("usage: keypad [--control PORT] [--headless]");
+                println!("usage: keypad [--control PORT] [--headless] [--minimized] [--no-tray]");
                 std::process::exit(0);
             }
             other => bail!("unknown argument `{other}` (try --help)"),
@@ -68,6 +75,7 @@ fn main() -> anyhow::Result<()> {
     let mut engine = Engine::new(platform_backend(), config_path());
     keypad_ui::register_ui_commands(&mut engine, args.control.is_some())
         .context("registering UI commands")?;
+    autostart::register(&mut engine).context("registering autostart")?;
     let engine = Arc::new(Mutex::new(engine));
     {
         let e = engine.lock().unwrap_or_else(|e| e.into_inner());
@@ -95,7 +103,11 @@ fn main() -> anyhow::Result<()> {
         run_headless(&engine);
         return Ok(());
     }
-    let result = keypad_ui::run_settings_window(engine.clone());
+    let tray = (!args.no_tray).then_some(keypad_ui::TrayOptions {
+        autostart_state: &autostart::AUTOSTART_ON,
+        autostart_supported: autostart::supported(),
+    });
+    let result = keypad_ui::run_settings_window(engine.clone(), tray, args.minimized);
     engine.lock().unwrap_or_else(|e| e.into_inner()).shutdown();
     result.map_err(|e| anyhow::anyhow!("settings window: {e}"))
 }

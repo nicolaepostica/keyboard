@@ -1,6 +1,7 @@
 //! The settings window: mode switch, F1–F12 mapping, problems and errors.
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -8,6 +9,8 @@ use egui::{Color32, RichText};
 use keypad_core::Action;
 use keypad_engine::{AppRequest, CommandSpec, Engine, EngineError};
 use serde_json::{Value, json};
+
+use crate::tray::{Tray, spawn_menu_thread};
 
 const ERROR_ID: &str = "keypad-last-error";
 
@@ -213,9 +216,17 @@ fn save_png(path: &Path, image: &egui::ColorImage) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// How the tray is set up.
+#[derive(Clone, Copy)]
+pub struct TrayOptions {
+    pub autostart_state: &'static AtomicBool,
+    pub autostart_supported: bool,
+}
+
 /// The eframe application: draws the settings and serves queued app requests.
 pub struct SettingsApp {
     engine: Arc<Mutex<Engine>>,
+    tray: Option<Tray>,
     quit: bool,
 }
 
@@ -223,6 +234,7 @@ impl SettingsApp {
     pub fn new(engine: Arc<Mutex<Engine>>) -> Self {
         SettingsApp {
             engine,
+            tray: None,
             quit: false,
         }
     }
@@ -261,6 +273,14 @@ impl eframe::App for SettingsApp {
         let mut e = engine.lock().unwrap_or_else(|e| e.into_inner());
         let ctx = ui.ctx().clone();
         self.serve_requests(&ctx, &mut e);
+        if let Some(t) = self.tray.as_mut() {
+            t.sync(&e);
+        }
+        // With a tray, closing the window hides it; Quit is in the tray menu.
+        if self.tray.is_some() && !self.quit && ctx.input(|i| i.viewport().close_requested()) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        }
         egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| settings_ui(ui, &mut e));
         });
@@ -268,19 +288,45 @@ impl eframe::App for SettingsApp {
     }
 }
 
-/// Opens the settings window and runs until it is closed or `app.quit` runs.
-pub fn run_settings_window(engine: Arc<Mutex<Engine>>) -> Result<(), String> {
+/// Runs the app: the settings window (hidden at start when `minimized`) and, with
+/// `tray`, a tray icon. Returns when `app.quit` runs (or the window closes without a tray).
+pub fn run_settings_window(
+    engine: Arc<Mutex<Engine>>,
+    tray: Option<TrayOptions>,
+    minimized: bool,
+) -> Result<(), String> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("keypad")
             .with_inner_size([520.0, 720.0])
-            .with_min_inner_size([420.0, 480.0]),
+            .with_min_inner_size([420.0, 480.0])
+            .with_visible(!(minimized && tray.is_some())),
         ..Default::default()
     };
     eframe::run_native(
         "keypad",
         options,
-        Box::new(move |_cc| Ok(Box::new(SettingsApp::new(engine)))),
+        Box::new(move |cc| {
+            let mut app = SettingsApp::new(engine.clone());
+            if let Some(opts) = tray {
+                let built = {
+                    let e = engine.lock().unwrap_or_else(|e| e.into_inner());
+                    Tray::new(&e, opts.autostart_state, opts.autostart_supported)
+                };
+                match built {
+                    Ok(t) => {
+                        app.tray = Some(t);
+                        spawn_menu_thread(engine, opts.autostart_state, cc.egui_ctx.clone());
+                    }
+                    Err(e) => {
+                        eprintln!("keypad: no tray icon ({e}); closing the window quits");
+                        cc.egui_ctx
+                            .send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                    }
+                }
+            }
+            Ok(Box::new(app))
+        }),
     )
     .map_err(|e| e.to_string())
 }
