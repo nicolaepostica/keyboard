@@ -10,3 +10,8 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+keypad-core = { version = "0.1.0", path = "../keypad-core" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+evdev = "0.13.2"
+inotify = "0.11.5"

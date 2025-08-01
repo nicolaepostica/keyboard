@@ -9,9 +9,9 @@ use std::sync::{Arc, Mutex};
 use keypad_core::{Action, Config, ConfigError, Decider, MAX_CONFIG_BYTES, parse_config, to_toml};
 use serde_json::Value;
 
-use crate::backend::{Backend, BackendEvent, Problem, SharedDecider};
 use crate::commands::{CommandSpec, builtin};
 use crate::history::History;
+use keypad_core::{Backend, BackendEvent, Problem, SharedDecider};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum EngineError {

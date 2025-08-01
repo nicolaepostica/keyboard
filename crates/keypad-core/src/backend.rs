@@ -3,7 +3,7 @@
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
-use keypad_core::{Action, Decider};
+use crate::{Action, Decider};
 
 /// Decider shared between the engine (config changes) and the backend's input thread(s).
 pub type SharedDecider = Arc<Mutex<Decider>>;
