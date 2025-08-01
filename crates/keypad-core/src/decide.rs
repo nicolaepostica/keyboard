@@ -32,6 +32,7 @@ pub enum Decision {
 pub struct Decider {
     mapping: Mapping,
     toggle: Hotkey,
+    brightness_step: u8,
     unsupported: Vec<Action>,
     enabled: bool,
     mods: [bool; 8],
@@ -59,6 +60,7 @@ impl Decider {
         Decider {
             mapping: cfg.mapping,
             toggle: cfg.toggle,
+            brightness_step: cfg.brightness_step,
             unsupported: unsupported.to_vec(),
             enabled: cfg.enabled,
             mods: [false; 8],
@@ -71,11 +73,17 @@ impl Decider {
     pub fn apply_config(&mut self, cfg: &Config) {
         self.mapping = cfg.mapping;
         self.toggle = cfg.toggle;
+        self.brightness_step = cfg.brightness_step;
         self.enabled = cfg.enabled;
     }
 
     pub fn set_enabled(&mut self, on: bool) {
         self.enabled = on;
+    }
+
+    /// Brightness change per press, for backends that set brightness themselves.
+    pub fn brightness_step(&self) -> u8 {
+        self.brightness_step
     }
 
     pub fn enabled(&self) -> bool {

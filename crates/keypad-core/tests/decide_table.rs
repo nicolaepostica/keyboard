@@ -150,3 +150,12 @@ fn release_swallowed_after_shift_pressed() {
     d.decide(down(Key::Mod(Modifier::LShift)));
     assert_eq!(d.decide(up(Key::F(8))), Decision::Swallow);
 }
+
+#[test]
+fn decider_exposes_brightness_step() {
+    let cfg = Config {
+        brightness_step: 25,
+        ..Config::default()
+    };
+    assert_eq!(Decider::new(&cfg, &[]).brightness_step(), 25);
+}
