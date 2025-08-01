@@ -4,8 +4,10 @@
 
 mod action;
 mod config;
+mod decide;
 mod key;
 
 pub use action::Action;
 pub use config::{Config, ConfigError, Hotkey, MAX_CONFIG_BYTES, Mapping, parse_config, to_toml};
+pub use decide::{Decider, Decision, InputEvent, KeyState};
 pub use key::{Key, Modifier};
