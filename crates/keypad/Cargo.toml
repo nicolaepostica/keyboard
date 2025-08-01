@@ -11,3 +11,9 @@ workspace = true
 
 [dependencies]
 anyhow = "1"
+keypad-core = { version = "0.1.0", path = "../keypad-core" }
+keypad-engine = { version = "0.1.0", path = "../keypad-engine" }
+serde_json = "1.0.154"
+
+[dev-dependencies]
+proptest = "1.12.0"

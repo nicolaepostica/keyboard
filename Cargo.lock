@@ -195,6 +195,10 @@ name = "keypad"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "keypad-core",
+ "keypad-engine",
+ "proptest",
+ "serde_json",
 ]
 
 [[package]]
