@@ -141,6 +141,8 @@ fn cross() -> anyhow::Result<()> {
     for (krate, target) in [
         ("keypad-linux", "x86_64-unknown-linux-gnu"),
         ("keypad-windows", "x86_64-pc-windows-msvc"),
+        ("keypad", "x86_64-unknown-linux-gnu"),
+        ("keypad", "x86_64-pc-windows-msvc"),
     ] {
         if !targets.iter().any(|t| t == target) {
             eprintln!("cross: WARNING target {target} not installed, skipping {krate}");

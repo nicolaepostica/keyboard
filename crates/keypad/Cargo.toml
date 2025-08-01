@@ -20,3 +20,6 @@ proptest = "1.12.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 keypad-linux = { version = "0.1.0", path = "../keypad-linux" }
+
+[target."cfg(windows)".dependencies]
+keypad-windows = { version = "0.1.0", path = "../keypad-windows" }

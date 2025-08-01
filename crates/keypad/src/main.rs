@@ -40,6 +40,8 @@ fn parse_args() -> anyhow::Result<Args> {
 fn platform_backend() -> Box<dyn Backend> {
     #[cfg(target_os = "linux")]
     return Box::new(keypad_linux::LinuxBackend::new());
+    #[cfg(windows)]
+    return Box::new(keypad_windows::WindowsBackend::new());
     #[allow(unreachable_code)]
     Box::new(NullBackend)
 }
