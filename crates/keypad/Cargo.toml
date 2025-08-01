@@ -13,6 +13,7 @@ workspace = true
 anyhow = "1"
 keypad-core = { version = "0.1.0", path = "../keypad-core" }
 keypad-engine = { version = "0.1.0", path = "../keypad-engine" }
+keypad-ui = { version = "0.1.0", path = "../keypad-ui" }
 serde_json = "1.0.154"
 
 [dev-dependencies]

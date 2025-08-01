@@ -10,3 +10,13 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+eframe = "0.37.0"
+egui = "0.37.0"
+keypad-core = { version = "0.1.0", path = "../keypad-core" }
+keypad-engine = { version = "0.1.0", path = "../keypad-engine" }
+png = "0.18.1"
+serde_json = "1.0.154"
+
+[dev-dependencies]
+egui_kittest = "0.37.0"
+tempfile = "3.27.0"

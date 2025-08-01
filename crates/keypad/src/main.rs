@@ -65,7 +65,10 @@ fn run_headless(engine: &Arc<Mutex<Engine>>) {
 
 fn main() -> anyhow::Result<()> {
     let args = parse_args()?;
-    let engine = Arc::new(Mutex::new(Engine::new(platform_backend(), config_path())));
+    let mut engine = Engine::new(platform_backend(), config_path());
+    keypad_ui::register_ui_commands(&mut engine, args.control.is_some())
+        .context("registering UI commands")?;
+    let engine = Arc::new(Mutex::new(engine));
     {
         let e = engine.lock().unwrap_or_else(|e| e.into_inner());
         eprintln!(
@@ -88,9 +91,11 @@ fn main() -> anyhow::Result<()> {
             .with_context(|| format!("binding control port {port}"))?;
         eprintln!("keypad: control channel on 127.0.0.1:{port}");
     }
-    if !args.headless {
-        eprintln!("keypad: no UI yet, running headless");
+    if args.headless {
+        run_headless(&engine);
+        return Ok(());
     }
-    run_headless(&engine);
-    Ok(())
+    let result = keypad_ui::run_settings_window(engine.clone());
+    engine.lock().unwrap_or_else(|e| e.into_inner()).shutdown();
+    result.map_err(|e| anyhow::anyhow!("settings window: {e}"))
 }
