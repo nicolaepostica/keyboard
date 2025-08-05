@@ -15,7 +15,9 @@ egui = "0.37.0"
 keypad-core = { version = "0.1.0", path = "../keypad-core" }
 keypad-engine = { version = "0.1.0", path = "../keypad-engine" }
 png = "0.18.1"
+serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
+toml = "1.2.1"
 tray-icon = { version = "0.26.1", default-features = false, features = ["ksni"] }
 
 [dev-dependencies]

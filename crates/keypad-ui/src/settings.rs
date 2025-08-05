@@ -64,7 +64,7 @@ fn action_text(a: Option<Action>) -> &'static str {
 
 /// Draws the whole settings panel. Every change goes through `engine.run`.
 pub fn settings_ui(ui: &mut egui::Ui, engine: &mut Engine) {
-    ui.heading("keypad");
+    ui.heading(RichText::new("keypad").color(crate::theme::theme().accent));
     ui.label("F1–F12 as media keys, without Fn. Any modifier (Ctrl, Alt, Shift, Super, AltGr) gives the plain F key.");
     ui.add_space(8.0);
 
@@ -303,10 +303,24 @@ pub fn run_settings_window(
             .with_visible(!(minimized && tray.is_some())),
         ..Default::default()
     };
+    let options = match crate::theme::app_icon() {
+        Ok(icon) => eframe::NativeOptions {
+            viewport: options.viewport.with_icon(Arc::new(icon)),
+            ..options
+        },
+        Err(e) => {
+            eprintln!("keypad: window icon: {e}");
+            options
+        }
+    };
     eframe::run_native(
         "keypad",
         options,
         Box::new(move |cc| {
+            cc.egui_ctx
+                .set_visuals_of(egui::Theme::Dark, crate::theme::visuals(true));
+            cc.egui_ctx
+                .set_visuals_of(egui::Theme::Light, crate::theme::visuals(false));
             let mut app = SettingsApp::new(engine.clone());
             if let Some(opts) = tray {
                 let built = {

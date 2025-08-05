@@ -30,35 +30,43 @@ pub fn command_for_menu(id: &str, checked: bool) -> Option<(&'static str, Value)
     }
 }
 
-/// RGBA pixels of the tray icon: a rounded key cap, filled when on, outlined when off.
+/// RGBA pixels of the tray icon: the app icon scaled down; greyed and faded when off.
 pub fn icon_rgba(on: bool) -> Vec<u8> {
-    let palette = crate::theme::palette();
-    let n = ICON_SIZE as i32;
-    let mut px = Vec::with_capacity((ICON_SIZE * ICON_SIZE * 4) as usize);
-    let (radius, inset) = (7, 2);
-    for y in 0..n {
-        for x in 0..n {
-            // Distance outside the rounded rectangle [inset, n-1-inset].
-            let cx = x.clamp(inset + radius, n - 1 - inset - radius);
-            let cy = y.clamp(inset + radius, n - 1 - inset - radius);
-            let (dx, dy) = (x - cx, y - cy);
-            let d2 = dx * dx + dy * dy;
-            let inside = d2 <= radius * radius;
-            let edge = x < inset + 3 || x > n - 4 - inset || y < inset + 3 || y > n - 4 - inset;
-            let border = inside && (d2 > (radius - 3) * (radius - 3) || edge);
-            // A small bar near the bottom, like the F-row legend.
-            let bar = (10..22).contains(&x) && (19..22).contains(&y);
-            let rgba = match (inside, on, border, bar) {
-                (false, ..) => [0, 0, 0, 0],
-                (true, true, _, true) => palette.on_accent,
-                (true, true, ..) => palette.accent,
-                (true, false, true, _) | (true, false, _, true) => palette.muted,
-                (true, false, false, false) => [0, 0, 0, 0],
+    let size = ICON_SIZE as usize;
+    let Ok(src) = crate::theme::app_icon() else {
+        return vec![0; size * size * 4];
+    };
+    let (sw, sh) = (src.width as usize, src.height as usize);
+    let (fx, fy) = ((sw / size).max(1), (sh / size).max(1));
+    let mut out = Vec::with_capacity(size * size * 4);
+    for y in 0..size {
+        for x in 0..size {
+            // Box filter, alpha-weighted so transparent pixels do not darken edges.
+            let (mut r, mut g, mut b, mut alpha) = (0u64, 0u64, 0u64, 0u64);
+            for yy in 0..fy {
+                for xx in 0..fx {
+                    let i = ((y * fy + yy) * sw + (x * fx + xx)) * 4;
+                    let at = |k: usize| u64::from(src.rgba.get(i + k).copied().unwrap_or(0));
+                    let a = at(3);
+                    r += at(0) * a;
+                    g += at(1) * a;
+                    b += at(2) * a;
+                    alpha += a;
+                }
+            }
+            let n = (fx * fy) as u64;
+            let avg = |c: u64| c.checked_div(alpha).map_or(0, |v| v as u8);
+            let (r, g, b, a) = (avg(r), avg(g), avg(b), (alpha / n) as u8);
+            let px = if on {
+                [r, g, b, a]
+            } else {
+                let grey = ((u16::from(r) + u16::from(g) + u16::from(b)) / 3) as u8;
+                [grey, grey, grey, (u16::from(a) * 55 / 100) as u8]
             };
-            px.extend_from_slice(&rgba);
+            out.extend_from_slice(&px);
         }
     }
-    px
+    out
 }
 
 fn icon(on: bool) -> Result<Icon, String> {

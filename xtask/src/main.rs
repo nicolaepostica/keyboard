@@ -1,4 +1,4 @@
-//! Project automation: `cargo xtask ci | layers | wasm | cross`.
+//! Project automation: `cargo xtask ci | layers | assets | wasm | cross`.
 
 use std::process::Command;
 
@@ -158,6 +158,74 @@ fn cross() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Images (by repo-relative path) whose file name no generator mentions.
+pub fn unmade_images(images: &[String], generators: &[String]) -> Vec<String> {
+    images
+        .iter()
+        .filter(|img| {
+            let name = img.rsplit('/').next().unwrap_or(img);
+            !generators.iter().any(|g| g.contains(name))
+        })
+        .cloned()
+        .collect()
+}
+
+fn files_in(dir: &str, exts: &[&str]) -> Vec<std::path::PathBuf> {
+    std::fs::read_dir(dir)
+        .map(|rd| {
+            rd.flatten()
+                .map(|e| e.path())
+                .filter(|p| {
+                    p.extension()
+                        .and_then(|e| e.to_str())
+                        .is_some_and(|e| exts.contains(&e))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Every image in assets/ and docs/assets/ must come from a generator in assets/,
+/// and the generators' own tests must pass (deterministic, committed outputs current).
+fn assets() -> anyhow::Result<()> {
+    let images: Vec<String> = ["assets", "docs/assets"]
+        .iter()
+        .flat_map(|d| files_in(d, &["png", "ico", "icns", "jpg"]))
+        .map(|p| p.display().to_string())
+        .collect();
+    let generators: Vec<String> = files_in("assets", &["py", "sh"])
+        .iter()
+        .filter_map(|p| std::fs::read_to_string(p).ok())
+        .collect();
+    let orphans = unmade_images(&images, &generators);
+    if !orphans.is_empty() {
+        bail!("images without a generator: {}", orphans.join(", "));
+    }
+    let has_pillow = Command::new("python3")
+        .args(["-c", "import PIL"])
+        .status()
+        .is_ok_and(|s| s.success());
+    if has_pillow {
+        run(
+            "python3",
+            &[
+                "-m",
+                "unittest",
+                "discover",
+                "-q",
+                "-s",
+                "assets",
+                "-p",
+                "test_*.py",
+            ],
+        )?;
+    } else {
+        eprintln!("assets: WARNING python3 with Pillow not found, generator tests skipped");
+    }
+    eprintln!("assets: ok ({} images)", images.len());
+    Ok(())
+}
+
 fn ci() -> anyhow::Result<()> {
     run("cargo", &["fmt", "--all", "--check"])?;
     run(
@@ -174,6 +242,7 @@ fn ci() -> anyhow::Result<()> {
     )?;
     run("cargo", &["test", "-q", "--workspace"])?;
     layers()?;
+    assets()?;
     wasm()?;
     cross()?;
     eprintln!("ci: ok");
@@ -186,13 +255,34 @@ fn main() -> anyhow::Result<()> {
         Some("layers") => layers(),
         Some("wasm") => wasm(),
         Some("cross") => cross(),
-        _ => bail!("usage: cargo xtask <ci|layers|wasm|cross>"),
+        Some("assets") => assets(),
+        _ => bail!("usage: cargo xtask <ci|layers|assets|wasm|cross>"),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::check_layers;
+    use super::{check_layers, unmade_images};
+
+    #[test]
+    fn image_without_generator_is_reported() {
+        let images = vec![
+            "assets/icon.png".to_string(),
+            "docs/assets/shot.png".to_string(),
+        ];
+        let generators = vec!["draw('icon.png')".to_string()];
+        assert_eq!(
+            unmade_images(&images, &generators),
+            vec!["docs/assets/shot.png".to_string()]
+        );
+    }
+
+    #[test]
+    fn image_named_by_a_generator_is_fine() {
+        let images = vec!["assets/keypad.ico".to_string()];
+        let generators = vec!["save('keypad.ico')".to_string()];
+        assert!(unmade_images(&images, &generators).is_empty());
+    }
 
     fn edge(a: &str, b: &str) -> Vec<(String, String)> {
         vec![(a.to_string(), b.to_string())]

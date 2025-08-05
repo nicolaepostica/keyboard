@@ -2004,8 +2004,10 @@ dependencies = [
  "keypad-core",
  "keypad-engine",
  "png",
+ "serde",
  "serde_json",
  "tempfile",
+ "toml",
  "tray-icon",
 ]
 

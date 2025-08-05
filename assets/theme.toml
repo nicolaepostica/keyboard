@@ -1,0 +1,13 @@
+# keypad theme: the single source of the app's colours, icon and banner.
+# Chosen by the agent (no owner brand yet) — see ROADMAP.md "Open questions".
+name = "keypad"
+accent = "#2f9e8f"        # teal: primary, buttons, the key cap
+accent_press = "#237a6f"  # pressed / the key cap's lower edge
+on_accent = "#ffffff"     # glyphs drawn on the accent
+muted = "#8a8f98"         # the "off" tray icon
+bg_light = "#f6f7f9"
+fg_light = "#1b1f24"
+bg_dark = "#16191d"
+fg_dark = "#e4e7eb"
+font = "Ubuntu Light"     # egui's default font, no extra font bundled
+motif = "a function-key cap with a media glyph (play/pause)"

@@ -1,7 +1,7 @@
 //! keypad-ui: settings window (egui) and tray. UI code only calls engine commands.
 
 mod settings;
-mod theme;
+pub mod theme;
 pub mod tray;
 
 pub use settings::{
