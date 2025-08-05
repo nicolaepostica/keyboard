@@ -23,10 +23,10 @@ class IconTest(unittest.TestCase):
             out = pathlib.Path(d)
             run_icon(out)
             self.assertEqual(Image.open(out / "assets" / "icon.png").size, (256, 256))
-            ico = Image.open(out / "assets" / "keypad.ico")
+            ico = Image.open(out / "assets" / "keyboard.ico")
             self.assertIn((16, 16), ico.info["sizes"])
             self.assertIn((256, 256), ico.info["sizes"])
-            mark = Image.open(out / "docs" / "assets" / "keypad-mark.png")
+            mark = Image.open(out / "docs" / "assets" / "keyboard-mark.png")
             self.assertEqual(mark.mode, "RGBA")
             self.assertEqual(mark.getpixel((0, 0))[3], 0, "mark background must be transparent")
 
@@ -34,13 +34,13 @@ class IconTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
             run_icon(pathlib.Path(a))
             run_icon(pathlib.Path(b))
-            for rel in ["assets/icon.png", "assets/keypad.ico", "docs/assets/keypad-mark.png"]:
+            for rel in ["assets/icon.png", "assets/keyboard.ico", "docs/assets/keyboard-mark.png"]:
                 self.assertEqual((pathlib.Path(a) / rel).read_bytes(), (pathlib.Path(b) / rel).read_bytes(), rel)
 
     def test_committed_files_are_current(self):
         with tempfile.TemporaryDirectory() as d:
             run_icon(pathlib.Path(d))
-            for rel in ["assets/icon.png", "assets/keypad.ico", "docs/assets/keypad-mark.png"]:
+            for rel in ["assets/icon.png", "assets/keyboard.ico", "docs/assets/keyboard-mark.png"]:
                 self.assertEqual((pathlib.Path(d) / rel).read_bytes(), (ROOT / rel).read_bytes(),
                                  f"{rel} is stale: run python3 assets/icon.py")
 
@@ -52,7 +52,7 @@ class BannerTest(unittest.TestCase):
     def test_size_and_transparency(self):
         with tempfile.TemporaryDirectory() as d:
             self.run_banner(pathlib.Path(d))
-            im = Image.open(pathlib.Path(d) / "docs" / "assets" / "keypad-banner.png")
+            im = Image.open(pathlib.Path(d) / "docs" / "assets" / "keyboard-banner.png")
             self.assertEqual(im.size, (2430, 420))
             self.assertEqual(im.getpixel((0, 0))[3], 0)
 
@@ -60,7 +60,7 @@ class BannerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
             self.run_banner(pathlib.Path(a))
             self.run_banner(pathlib.Path(b))
-            rel = "docs/assets/keypad-banner.png"
+            rel = "docs/assets/keyboard-banner.png"
             self.assertEqual((pathlib.Path(a) / rel).read_bytes(), (pathlib.Path(b) / rel).read_bytes())
             self.assertEqual((pathlib.Path(a) / rel).read_bytes(), (ROOT / rel).read_bytes(),
                              "banner is stale: run python3 assets/banner.py")

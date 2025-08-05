@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/assets/keypad-mark.png" width="130" alt="keypad">
+<img src="docs/assets/keyboard-mark.png" width="130" alt="keyboard">
 
-<img src="docs/assets/keypad-banner.png" alt="keypad: F1–F12 as media keys">
+<img src="docs/assets/keyboard-banner.png" alt="keyboard: F1–F12 as media keys">
 
 **F1–F12 as media keys on any keyboard, without holding Fn: brightness, keyboard light, volume, play/pause, previous/next.**
 
@@ -17,9 +17,9 @@
 </div>
 
 A small personal tool: laptop and external keyboards send F1–F12 unless you hold Fn, while a Mac
-keyboard does the opposite. keypad makes every keyboard behave like the Mac one.
+keyboard does the opposite. This app, **keyboard**, makes every keyboard behave like the Mac one.
 
-<p align="center"><img src="docs/assets/settings.png" width="760" alt="keypad settings: a virtual keyboard whose F1–F12 keys show their media action"></p>
+<p align="center"><img src="docs/assets/settings.png" width="760" alt="settings window: a virtual keyboard whose F1–F12 keys show their media action"></p>
 
 ## Quick start
 
@@ -28,13 +28,13 @@ There are no release packages yet; build from source.
 ### From source
 
 1. Install Rust with [rustup](https://rustup.rs) (stable, 1.95 or newer).
-2. `cargo run --release -p keypad` — the binary lands in `target/release/keypad` (`keypad.exe` on Windows).
+2. `cargo run --release -p keyboard` — the binary lands in `target/release/keyboard` (`keyboard.exe` on Windows).
 3. On Linux, give your user access to keyboards once (see [Linux](#linux)).
 
 Command line:
 
 ```
-keypad [--control PORT] [--headless] [--minimized] [--no-tray]
+keyboard [--control PORT] [--headless] [--minimized] [--no-tray]
 ```
 
 | Flag | Effect |
@@ -54,7 +54,7 @@ keypad [--control PORT] [--headless] [--minimized] [--no-tray]
 | **Plain F keys** | F + any modifier (Ctrl, Alt, Shift, Super, AltGr) stays a plain F key, so Alt+F4 and Ctrl+F5 keep working. |
 | **Fn Lock** | `Ctrl+Alt+K` (configurable) or the tray menu switches translation off and on. |
 | **Any keyboard** | the built-in keyboard and every external one, including keyboards plugged in later. |
-| **Safe** | if keypad stops or crashes, the keyboard goes straight back to normal. |
+| **Safe** | if the app stops or crashes, your keyboard goes straight back to normal. |
 
 Default mapping, as on a Mac:
 
@@ -85,8 +85,8 @@ Settings are saved at once to `config.toml`:
 
 | Platform | Path |
 |---|---|
-| Linux | `~/.config/keypad/config.toml` |
-| Windows | `%APPDATA%\keypad\config.toml` |
+| Linux | `~/.config/keyboard/config.toml` |
+| Windows | `%APPDATA%\keyboard\config.toml` |
 
 ```toml
 enabled = true
@@ -114,14 +114,14 @@ Shortcut (from the command registry):
 
 ## Linux
 
-keypad reads keyboards through **evdev** and writes through one virtual **uinput** keyboard, below
+The app reads keyboards through **evdev** and writes through one virtual **uinput** keyboard, below
 X11 and Wayland, so it works the same on KDE Plasma and GNOME, on either session type.
 
 It needs access to `/dev/input` and `/dev/uinput`, once:
 
 ```sh
 sudo usermod -aG input $USER
-echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/99-keypad-uinput.rules
+echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/99-keyboard-uinput.rules
 sudo udevadm control --reload && sudo udevadm trigger
 ```
 
@@ -130,7 +130,7 @@ personal laptop.
 
 - **Tray:** KDE shows the icon natively. GNOME needs the *AppIndicator and KStatusNotifierItem
   Support* extension.
-- **Start at login** writes `~/.config/autostart/keypad.desktop`.
+- **Start at login** writes `~/.config/autostart/keyboard.desktop`.
 - Building needs no GTK or other system libraries for the tray (it uses the StatusNotifierItem
   D-Bus protocol).
 
@@ -139,10 +139,10 @@ desktop.**
 
 ## Windows
 
-keypad installs a low-level keyboard hook, sends the media keys with `SendInput` and sets the
+The app installs a low-level keyboard hook, sends the media keys with `SendInput` and sets the
 panel brightness through WMI (`WmiMonitorBrightnessMethods`), since Windows has no brightness key.
 External monitors do not support WMI brightness; their brightness keys report an error in the
-window. **Start at login** adds `keypad` under
+window. **Start at login** adds `keyboard` under
 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 
 **Note: cross-compiled and linked for Windows, not yet run on a real Windows machine.**
@@ -153,16 +153,16 @@ window. **Start at login** adds `keypad` under
 
 | Path | Holds |
 |---|---|
-| `crates/keypad-core` | config model (`config.toml`), the pure `Decider` (pass / swallow / emit / toggle) and the backend trait; also builds for wasm |
-| `crates/keypad-linux` | evdev grab, uinput virtual keyboard, hotplug, permission checks |
-| `crates/keypad-windows` | `WH_KEYBOARD_LL` hook, `SendInput`, WMI brightness |
-| `crates/keypad-engine` | session, command registry, undo/redo, panic guard, config file |
-| `crates/keypad-ui` | settings window (egui), tray icon, theme |
-| `crates/keypad` | the binary: arguments, control channel, start at login |
+| `crates/keyboard-core` | config model (`config.toml`), the pure `Decider` (pass / swallow / emit / toggle) and the backend trait; also builds for wasm |
+| `crates/keyboard-linux` | evdev grab, uinput virtual keyboard, hotplug, permission checks |
+| `crates/keyboard-windows` | `WH_KEYBOARD_LL` hook, `SendInput`, WMI brightness |
+| `crates/keyboard-engine` | session, command registry, undo/redo, panic guard, config file |
+| `crates/keyboard-ui` | settings window (egui), tray icon, theme |
+| `crates/keyboard` | the binary: arguments, control channel, start at login |
 | `xtask` | `cargo xtask ci`: fmt, clippy, tests, layer check, asset check, wasm and cross-platform builds |
 | `assets/theme.toml` | the colours used by the app, the icon and the banner |
-| `assets/icon.py` | draws `assets/icon.png`, `assets/keypad.ico`, `docs/assets/keypad-mark.png` |
-| `assets/banner.py` | draws `docs/assets/keypad-banner.png` |
+| `assets/icon.py` | draws `assets/icon.png`, `assets/keyboard.ico`, `docs/assets/keyboard-mark.png` |
+| `assets/banner.py` | draws `docs/assets/keyboard-banner.png` |
 | `assets/screenshots.sh` | renders `docs/assets/settings.png` |
 
 ## Tests
@@ -171,7 +171,7 @@ window. **Start at login** adds `keypad` under
 cargo xtask ci                                      # everything below plus lints and builds
 cargo test --workspace                              # unit, property and UI tests
 python3 -m unittest discover -s assets -p 'test_*.py'   # asset generators
-cargo test -p keypad-linux -- --ignored             # real-kernel test: needs /dev/uinput (root)
+cargo test -p keyboard-linux -- --ignored             # real-kernel test: needs /dev/uinput (root)
 ```
 
 The real-kernel test creates a fake keyboard with uinput and checks that F8 becomes play/pause,

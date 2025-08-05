@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Draws the README banner from assets/theme.toml: the name spelled on key caps, then the
-media keys keypad gives you (previous, play/pause, next). Transparent background.
+media keys keyboard gives you (previous, play/pause, next). Transparent background.
 
-Output (relative to --out, default: the repo root): docs/assets/keypad-banner.png (2430x420)
+Output (relative to --out, default: the repo root): docs/assets/keyboard-banner.png (2430x420)
 """
 import argparse
 import pathlib
@@ -53,11 +53,13 @@ def main() -> None:
     accent, edge, glyph, muted = rgba(t["accent"]), rgba(t["accent_press"]), rgba(t["on_accent"]), rgba(t["muted"])
     img = Image.new("RGBA", (W * SS, H * SS), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    s = 230 * SS
-    gap = 24 * SS
+    # Key size from the number of caps: the name's letters plus three media keys.
+    caps = len(t["name"]) + 3
+    gap = 22 * SS
+    s = min(230 * SS, int((W * SS - 60 * SS - (caps + 1) * gap) / caps))
     y = (H * SS - s) / 2
     font = ImageFont.load_default(size=int(s * 0.55))
-    total = 9 * s + 8 * gap + 2 * gap
+    total = caps * s + (caps - 1) * gap + 2 * gap
     x = (W * SS - total) / 2
     for ch in t["name"]:
         cx, cy = cap(d, x, y, s, accent, edge)
@@ -81,7 +83,7 @@ def main() -> None:
         x += s + gap
     out = args.out / "docs" / "assets"
     out.mkdir(parents=True, exist_ok=True)
-    img.resize((W, H), Image.LANCZOS).save(out / "keypad-banner.png", optimize=False)
+    img.resize((W, H), Image.LANCZOS).save(out / "keyboard-banner.png", optimize=False)
 
 
 if __name__ == "__main__":

@@ -6,12 +6,12 @@ use anyhow::{Context, bail};
 
 /// Layer of each workspace crate (see the design doc, §6.1).
 const LAYERS: &[(&str, u8)] = &[
-    ("keypad-core", 1),
-    ("keypad-linux", 3),
-    ("keypad-windows", 3),
-    ("keypad-engine", 5),
-    ("keypad-ui", 6),
-    ("keypad", 7),
+    ("keyboard-core", 1),
+    ("keyboard-linux", 3),
+    ("keyboard-windows", 3),
+    ("keyboard-engine", 5),
+    ("keyboard-ui", 6),
+    ("keyboard", 7),
     ("xtask", 7),
 ];
 
@@ -129,7 +129,7 @@ fn wasm() -> anyhow::Result<()> {
             "build",
             "-q",
             "-p",
-            "keypad-core",
+            "keyboard-core",
             "--target",
             "wasm32-unknown-unknown",
         ],
@@ -139,10 +139,10 @@ fn wasm() -> anyhow::Result<()> {
 fn cross() -> anyhow::Result<()> {
     let targets = installed_targets();
     for (krate, target) in [
-        ("keypad-linux", "x86_64-unknown-linux-gnu"),
-        ("keypad-windows", "x86_64-pc-windows-msvc"),
-        ("keypad", "x86_64-unknown-linux-gnu"),
-        ("keypad", "x86_64-pc-windows-msvc"),
+        ("keyboard-linux", "x86_64-unknown-linux-gnu"),
+        ("keyboard-windows", "x86_64-pc-windows-msvc"),
+        ("keyboard", "x86_64-unknown-linux-gnu"),
+        ("keyboard", "x86_64-pc-windows-msvc"),
     ] {
         if !targets.iter().any(|t| t == target) {
             eprintln!("cross: WARNING target {target} not installed, skipping {krate}");
@@ -279,8 +279,8 @@ mod tests {
 
     #[test]
     fn image_named_by_a_generator_is_fine() {
-        let images = vec!["assets/keypad.ico".to_string()];
-        let generators = vec!["save('keypad.ico')".to_string()];
+        let images = vec!["assets/keyboard.ico".to_string()];
+        let generators = vec!["save('keyboard.ico')".to_string()];
         assert!(unmade_images(&images, &generators).is_empty());
     }
 
@@ -290,16 +290,19 @@ mod tests {
 
     #[test]
     fn core_must_not_depend_on_engine() {
-        assert_eq!(check_layers(&edge("keypad-core", "keypad-engine")).len(), 1);
+        assert_eq!(
+            check_layers(&edge("keyboard-core", "keyboard-engine")).len(),
+            1
+        );
     }
 
     #[test]
     fn engine_must_not_depend_on_egui() {
-        assert_eq!(check_layers(&edge("keypad-engine", "egui")).len(), 1);
+        assert_eq!(check_layers(&edge("keyboard-engine", "egui")).len(), 1);
     }
 
     #[test]
     fn ui_may_depend_on_engine() {
-        assert!(check_layers(&edge("keypad-ui", "keypad-engine")).is_empty());
+        assert!(check_layers(&edge("keyboard-ui", "keyboard-engine")).is_empty());
     }
 }

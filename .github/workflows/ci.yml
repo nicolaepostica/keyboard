@@ -40,8 +40,8 @@ jobs:
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Build the e2e test
-        run: cargo test -p keypad-linux --test uinput_e2e --no-run
+        run: cargo test -p keyboard-linux --test uinput_e2e --no-run
       - name: Run it as root
         run: |
           sudo modprobe uinput
-          sudo -E env "PATH=$PATH" cargo test -p keypad-linux --test uinput_e2e -- --include-ignored
+          sudo -E env "PATH=$PATH" cargo test -p keyboard-linux --test uinput_e2e -- --include-ignored

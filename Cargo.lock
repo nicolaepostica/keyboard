@@ -2019,6 +2019,51 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyboard"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "keyboard-core",
+ "keyboard-engine",
+ "keyboard-linux",
+ "keyboard-ui",
+ "keyboard-windows",
+ "proptest",
+ "serde_json",
+ "windows",
+]
+
+[[package]]
+name = "keyboard-core"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "serde",
+ "thiserror 2.0.21",
+ "toml",
+]
+
+[[package]]
+name = "keyboard-engine"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "keyboard-core",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "keyboard-linux"
+version = "0.1.0"
+dependencies = [
+ "evdev",
+ "inotify",
+ "keyboard-core",
+]
+
+[[package]]
 name = "keyboard-types"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2029,59 +2074,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "keypad"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "keypad-core",
- "keypad-engine",
- "keypad-linux",
- "keypad-ui",
- "keypad-windows",
- "proptest",
- "serde_json",
- "windows",
-]
-
-[[package]]
-name = "keypad-core"
-version = "0.1.0"
-dependencies = [
- "proptest",
- "serde",
- "thiserror 2.0.21",
- "toml",
-]
-
-[[package]]
-name = "keypad-engine"
-version = "0.1.0"
-dependencies = [
- "dirs",
- "keypad-core",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "keypad-linux"
-version = "0.1.0"
-dependencies = [
- "evdev",
- "inotify",
- "keypad-core",
-]
-
-[[package]]
-name = "keypad-ui"
+name = "keyboard-ui"
 version = "0.1.0"
 dependencies = [
  "eframe",
  "egui",
  "egui_kittest",
- "keypad-core",
- "keypad-engine",
+ "keyboard-core",
+ "keyboard-engine",
  "png",
  "serde",
  "serde_json",
@@ -2091,10 +2091,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "keypad-windows"
+name = "keyboard-windows"
 version = "0.1.0"
 dependencies = [
- "keypad-core",
+ "keyboard-core",
  "serde",
  "windows",
  "wmi",

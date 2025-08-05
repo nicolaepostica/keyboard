@@ -1,6 +1,6 @@
-# keypad theme: the single source of the app's colours, icon and banner.
+# keyboard theme: the single source of the app's colours, icon and banner.
 # Chosen by the agent (no owner brand yet) — see ROADMAP.md "Open questions".
-name = "keypad"
+name = "keyboard"
 accent = "#2f9e8f"        # teal: primary, buttons, the key cap
 accent_press = "#237a6f"  # pressed / the key cap's lower edge
 on_accent = "#ffffff"     # glyphs drawn on the accent

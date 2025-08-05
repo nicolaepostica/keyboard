@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Draws the keypad icon from assets/theme.toml: a function-key cap with a play/pause glyph.
+"""Draws the keyboard icon from assets/theme.toml: a function-key cap with a play/pause glyph.
 
 Outputs (relative to --out, default: the repo root):
   assets/icon.png            256x256, window icon / .desktop / favicon
-  assets/keypad.ico          16..256, Windows .exe resource
-  docs/assets/keypad-mark.png  512x512 transparent, README header
+  assets/keyboard.ico          16..256, Windows .exe resource
+  docs/assets/keyboard-mark.png  512x512 transparent, README header
 """
 import argparse
 import pathlib
@@ -54,9 +54,9 @@ def main() -> None:
     (args.out / "docs" / "assets").mkdir(parents=True, exist_ok=True)
     draw_mark(256, theme).save(args.out / "assets" / "icon.png", optimize=False)
     big = draw_mark(256, theme)
-    big.save(args.out / "assets" / "keypad.ico",
+    big.save(args.out / "assets" / "keyboard.ico",
              sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
-    draw_mark(512, theme).save(args.out / "docs" / "assets" / "keypad-mark.png", optimize=False)
+    draw_mark(512, theme).save(args.out / "docs" / "assets" / "keyboard-mark.png", optimize=False)
 
 
 if __name__ == "__main__":
