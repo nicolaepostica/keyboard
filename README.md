@@ -19,7 +19,7 @@
 A small personal tool: laptop and external keyboards send F1–F12 unless you hold Fn, while a Mac
 keyboard does the opposite. keypad makes every keyboard behave like the Mac one.
 
-<p align="center"><img src="docs/assets/settings.png" width="520" alt="keypad settings window"></p>
+<p align="center"><img src="docs/assets/settings.png" width="760" alt="keypad settings: a virtual keyboard whose F1–F12 keys show their media action"></p>
 
 ## Quick start
 
@@ -75,8 +75,9 @@ through untouched.
 
 ## Settings
 
-The window (tray menu → **Settings…**) lets you pick the action of each key, switch translation on
-or off, undo/redo changes and reset to the Mac default. Actions your platform cannot perform are
+The window (tray menu → **Settings…**) shows a virtual laptop keyboard: each of F1–F12 carries
+the icon of its action. Click a function key, then pick its action below the keyboard. You can
+also switch translation on or off, undo/redo changes and reset to the Mac default. Actions your platform cannot perform are
 greyed out. Problems, such as missing permissions on Linux, are shown at the top with the exact
 commands that fix them.
 

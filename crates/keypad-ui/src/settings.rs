@@ -58,10 +58,6 @@ fn banner(ui: &mut egui::Ui, color: Color32, text: &str, commands: &[String]) {
         });
 }
 
-fn action_text(a: Option<Action>) -> &'static str {
-    a.map_or("Plain F key", Action::label)
-}
-
 /// Draws the whole settings panel. Every change goes through `engine.run`.
 pub fn settings_ui(ui: &mut egui::Ui, engine: &mut Engine) {
     ui.heading(RichText::new("keypad").color(crate::theme::theme().accent));
@@ -88,53 +84,15 @@ pub fn settings_ui(ui: &mut egui::Ui, engine: &mut Engine) {
     }
     ui.add_space(8.0);
 
-    let unsupported = engine.unsupported();
-    egui::Grid::new("mapping")
-        .num_columns(2)
-        .spacing([16.0, 6.0])
-        .striped(true)
-        .show(ui, |ui| {
-            for f in 1..=12u8 {
-                let key_label = ui.label(format!("F{f}"));
-                let current = engine.config().mapping.get(f);
-                let mut choice: Option<Option<Action>> = None;
-                egui::ComboBox::from_id_salt(("map", f))
-                    .width(220.0)
-                    .selected_text(action_text(current))
-                    .show_ui(ui, |ui| {
-                        if ui
-                            .selectable_label(current.is_none(), action_text(None))
-                            .clicked()
-                        {
-                            choice = Some(None);
-                        }
-                        for a in Action::ALL {
-                            let supported = !unsupported.contains(&a);
-                            let r = ui
-                                .add_enabled(
-                                    supported,
-                                    egui::Button::selectable(current == Some(a), a.label()),
-                                )
-                                .on_disabled_hover_text("Not supported on this platform");
-                            if r.clicked() {
-                                choice = Some(Some(a));
-                            }
-                        }
-                    })
-                    .response
-                    .labelled_by(key_label.id);
-                if let Some(c) = choice {
-                    let name = c.map_or("none", Action::name);
-                    run(
-                        ui,
-                        engine,
-                        "mapping.set",
-                        json!({ "key": format!("f{f}"), "action": name }),
-                    );
-                }
-                ui.end_row();
-            }
-        });
+    if let Some((f, action)) = crate::keyboard::keyboard_ui(ui, engine) {
+        let name = action.map_or("none", Action::name);
+        run(
+            ui,
+            engine,
+            "mapping.set",
+            json!({ "key": format!("f{f}"), "action": name }),
+        );
+    }
 
     ui.add_space(8.0);
     ui.horizontal(|ui| {
@@ -346,8 +304,8 @@ pub fn run_settings_window(
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("keypad")
-            .with_inner_size([520.0, 720.0])
-            .with_min_inner_size([420.0, 480.0])
+            .with_inner_size([960.0, 640.0])
+            .with_min_inner_size([640.0, 480.0])
             // Wayland cannot start a window hidden; it is minimized on the first tick.
             .with_visible(!(minimized && tray.is_some() && !running_on_wayland())),
         ..Default::default()

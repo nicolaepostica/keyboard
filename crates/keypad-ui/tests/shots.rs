@@ -1,6 +1,7 @@
 //! README screenshots, rendered headlessly. Only runs with `KEYPAD_SHOTS=<dir>`:
 //! `KEYPAD_SHOTS=docs/assets cargo test -p keypad-ui --test shots` (see assets/screenshots.sh).
 
+use egui_kittest::kittest::Queryable as _;
 use keypad_core::{Action, Backend, BackendError, BackendEvent, Problem, SharedDecider};
 use keypad_engine::Engine;
 use keypad_ui::settings_ui;
@@ -37,7 +38,7 @@ fn settings_screenshot() {
     let tmp = tempfile::tempdir().unwrap();
     let engine = Engine::new(Box::new(Showcase), Some(tmp.path().join("config.toml")));
     let mut h = egui_kittest::Harness::builder()
-        .with_size(egui::Vec2::new(520.0, 495.0))
+        .with_size(egui::Vec2::new(960.0, 660.0))
         .with_pixels_per_point(2.0)
         .build_ui_state(
             |ui, e: &mut Engine| {
@@ -46,6 +47,8 @@ fn settings_screenshot() {
             },
             engine,
         );
+    h.run();
+    h.get_by_label("F8: Play / pause").click();
     h.run();
     let img = h.render().unwrap();
     let path = std::path::Path::new(&dir).join("settings.png");

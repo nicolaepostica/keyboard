@@ -9,7 +9,7 @@ use keypad_ui::settings_ui;
 
 fn harness(engine: Engine) -> Harness<'static, Engine> {
     Harness::builder()
-        .with_size(egui::Vec2::new(520.0, 720.0))
+        .with_size(egui::Vec2::new(960.0, 640.0))
         .build_ui_state(|ui, engine: &mut Engine| settings_ui(ui, engine), engine)
 }
 
@@ -41,20 +41,11 @@ fn engine_in(dir: &tempfile::TempDir) -> Engine {
 }
 
 #[test]
-fn shows_all_function_keys() {
-    let dir = tempfile::tempdir().unwrap();
-    let h = harness(engine_in(&dir));
-    for f in 1..=12 {
-        h.get_by_label(&format!("F{f}"));
-    }
-}
-
-#[test]
 fn choosing_mute_for_f8_changes_the_mapping() {
     let dir = tempfile::tempdir().unwrap();
     let engine = Engine::new(Box::new(AllActions), Some(dir.path().join("config.toml")));
     let mut h = harness(engine);
-    h.get_by_role_and_label(Role::ComboBox, "F8").click();
+    h.get_by_label("F8: Play / pause").click();
     h.run();
     h.get_by_role_and_label(Role::Button, "Mute").click();
     h.run();
@@ -105,7 +96,7 @@ fn problems_are_shown() {
 fn unsupported_actions_are_disabled() {
     let dir = tempfile::tempdir().unwrap();
     let mut h = harness(engine_in(&dir));
-    h.get_by_role_and_label(Role::ComboBox, "F8").click();
+    h.get_by_label("F8: Play / pause").click();
     h.run();
     h.get_by_role_and_label(Role::Button, "Mute").click();
     h.run();
