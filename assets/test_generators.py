@@ -45,5 +45,26 @@ class IconTest(unittest.TestCase):
                                  f"{rel} is stale: run python3 assets/icon.py")
 
 
+class BannerTest(unittest.TestCase):
+    def run_banner(self, out):
+        subprocess.run([sys.executable, str(ROOT / "assets" / "banner.py"), "--out", str(out)], check=True)
+
+    def test_size_and_transparency(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.run_banner(pathlib.Path(d))
+            im = Image.open(pathlib.Path(d) / "docs" / "assets" / "keypad-banner.png")
+            self.assertEqual(im.size, (2430, 420))
+            self.assertEqual(im.getpixel((0, 0))[3], 0)
+
+    def test_deterministic_and_current(self):
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            self.run_banner(pathlib.Path(a))
+            self.run_banner(pathlib.Path(b))
+            rel = "docs/assets/keypad-banner.png"
+            self.assertEqual((pathlib.Path(a) / rel).read_bytes(), (pathlib.Path(b) / rel).read_bytes())
+            self.assertEqual((pathlib.Path(a) / rel).read_bytes(), (ROOT / rel).read_bytes(),
+                             "banner is stale: run python3 assets/banner.py")
+
+
 if __name__ == "__main__":
     unittest.main()
