@@ -1,3 +1,6 @@
+// Test helpers outside #[test] fns: clippy's allow-unwrap-in-tests does not reach them.
+#![allow(clippy::unwrap_used)]
+
 use std::path::PathBuf;
 
 use keypad_core::Action;
@@ -197,4 +200,127 @@ fn app_quit_requests_quit() {
     let (mut e, _) = engine_at(&dir);
     e.run("app.quit", json!({})).unwrap();
     assert!(e.take_requests().contains(&keypad_engine::AppRequest::Quit));
+}
+
+// ---- Final review #4 and #5 ----
+
+use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
+
+use keypad_core::{
+    Backend, BackendError, BackendEvent, Decision, InputEvent, Key, KeyState, Modifier, Problem,
+    SharedDecider,
+};
+
+type Captured = Arc<Mutex<Option<(SharedDecider, Sender<BackendEvent>)>>>;
+
+/// Keeps the decider and the event sender so a test can act like the input thread.
+struct Capturing(Captured);
+
+impl Backend for Capturing {
+    fn name(&self) -> &'static str {
+        "capturing"
+    }
+    fn unsupported(&self) -> &'static [Action] {
+        &[]
+    }
+    fn start(&mut self, d: SharedDecider, tx: Sender<BackendEvent>) -> Result<(), BackendError> {
+        *self.0.lock().unwrap() = Some((d, tx));
+        Ok(())
+    }
+    fn stop(&mut self) {}
+    fn problems(&self) -> Vec<Problem> {
+        Vec::new()
+    }
+}
+
+/// Presses Ctrl+Alt+K on the "input thread" and reports it, as a backend does.
+fn press_hotkey(cap: &Captured) {
+    let guard = cap.lock().unwrap();
+    let (d, tx) = guard.as_ref().unwrap();
+    let mut d = d.lock().unwrap();
+    for m in [Modifier::LCtrl, Modifier::LAlt] {
+        d.decide(InputEvent {
+            key: Key::Mod(m),
+            state: KeyState::Down,
+        });
+    }
+    assert_eq!(
+        d.decide(InputEvent {
+            key: Key::Letter('k'),
+            state: KeyState::Down
+        }),
+        Decision::ToggleMode
+    );
+    for m in [Modifier::LCtrl, Modifier::LAlt] {
+        d.decide(InputEvent {
+            key: Key::Mod(m),
+            state: KeyState::Up,
+        });
+    }
+    tx.send(BackendEvent::ToggledMode(d.enabled())).unwrap();
+}
+
+fn capturing_engine(dir: &tempfile::TempDir) -> (Engine, Captured) {
+    let cap: Captured = Arc::new(Mutex::new(None));
+    let e = Engine::new(
+        Box::new(Capturing(cap.clone())),
+        Some(dir.path().join("config.toml")),
+    );
+    (e, cap)
+}
+
+#[test]
+fn hotkey_toggle_survives_a_mapping_change_before_poll() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut e, cap) = capturing_engine(&dir);
+    press_hotkey(&cap);
+    e.run("mapping.set", json!({"key": "f8", "action": "mute"}))
+        .unwrap();
+    assert!(!e.enabled(), "mapping change re-enabled translation");
+    e.poll_backend();
+    assert!(!e.enabled());
+    assert!(!e.config().enabled);
+}
+
+#[test]
+fn stale_toggle_event_does_not_override_a_later_tray_toggle() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut e, cap) = capturing_engine(&dir);
+    press_hotkey(&cap); // off, event queued
+    e.run("mode.set", json!({"on": true})).unwrap(); // tray: on
+    e.poll_backend(); // the stale ToggledMode(false) arrives
+    assert!(e.enabled());
+    assert!(
+        e.config().enabled,
+        "saved mode disagrees with the running mode"
+    );
+}
+
+#[test]
+fn undo_does_not_change_the_mode() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut e, _) = engine_at(&dir);
+    e.run("mapping.set", json!({"key": "f5", "action": "mute"}))
+        .unwrap();
+    e.run("mode.set", json!({"on": false})).unwrap();
+    e.run("edit.undo", json!({})).unwrap();
+    assert!(!e.enabled());
+    assert!(!e.config().enabled);
+    e.run("edit.redo", json!({})).unwrap();
+    assert!(!e.enabled());
+}
+
+#[test]
+fn broken_config_is_backed_up_before_first_save() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("config.toml");
+    let broken = "[mapping]\nf5 = \"kbd_light_down\"\nf6 = \"mute\"\n";
+    std::fs::write(&path, broken).unwrap();
+    let mut e = Engine::new(Box::new(NullBackend), Some(path.clone()));
+    e.run("mode.toggle", json!({})).unwrap();
+    let backup = dir.path().join("config.toml.bak");
+    assert_eq!(std::fs::read_to_string(&backup).unwrap(), broken);
+    let note = e.config_error().unwrap_or_default().to_string();
+    assert!(note.contains("config.toml.bak"), "{note}");
 }

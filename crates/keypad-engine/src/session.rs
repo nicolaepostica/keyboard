@@ -47,6 +47,8 @@ pub struct Engine {
     config: Config,
     config_path: Option<PathBuf>,
     config_error: Option<String>,
+    /// The file on disk failed to parse; back it up before the first save overwrites it.
+    broken_on_disk: bool,
     backend_error: Option<String>,
     history: History,
     commands: Vec<CommandSpec>,
@@ -75,6 +77,9 @@ impl Engine {
                 Err(e) => (Config::default(), Some(format!("config ignored: {e}"))),
             },
         };
+        let broken_on_disk = config_error
+            .as_deref()
+            .is_some_and(|e| e.starts_with("config ignored"));
         let decider = Arc::new(Mutex::new(Decider::new(&config, backend.unsupported())));
         let (tx, rx) = channel();
         let backend_error = backend
@@ -87,6 +92,7 @@ impl Engine {
             config,
             config_path,
             config_error,
+            broken_on_disk,
             backend_error,
             history: History::default(),
             commands: builtin(),
@@ -194,8 +200,10 @@ impl Engine {
     pub fn poll_backend(&mut self) {
         while let Ok(ev) = self.events.try_recv() {
             match ev {
-                BackendEvent::ToggledMode(on) => {
-                    self.config.enabled = on;
+                // The decider already switched; its state is the truth, the event's payload
+                // may be stale (a tray toggle can have run in between).
+                BackendEvent::ToggledMode(_) => {
+                    self.config.enabled = self.enabled();
                     self.save_quietly();
                 }
                 BackendEvent::DeviceAdded(n) => self.push_log(format!("keyboard added: {n}")),
@@ -226,7 +234,10 @@ impl Engine {
 
     pub(crate) fn set_mode(&mut self, on: bool) {
         self.config.enabled = on;
-        self.sync_decider();
+        self.decider
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .set_enabled(on);
         self.save_quietly();
     }
 
@@ -242,7 +253,8 @@ impl Engine {
     }
 
     pub(crate) fn undo(&mut self) {
-        if let Some(prev) = self.history.undo(self.config.clone()) {
+        if let Some(mut prev) = self.history.undo(self.config.clone()) {
+            prev.enabled = self.enabled(); // the mode is not part of undo
             self.config = prev;
             self.sync_decider();
             self.save_quietly();
@@ -250,7 +262,8 @@ impl Engine {
     }
 
     pub(crate) fn redo(&mut self) {
-        if let Some(next) = self.history.redo(self.config.clone()) {
+        if let Some(mut next) = self.history.redo(self.config.clone()) {
+            next.enabled = self.enabled();
             self.config = next;
             self.sync_decider();
             self.save_quietly();
@@ -265,7 +278,10 @@ impl Engine {
         match parse_config(&bytes) {
             Ok(cfg) => {
                 self.config_error = None;
+                self.broken_on_disk = false;
+                let on = cfg.enabled;
                 self.change_config(cfg);
+                self.set_mode(on);
                 Ok(())
             }
             Err(e) => {
@@ -282,8 +298,20 @@ impl Engine {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir).map_err(|e| EngineError::Io(e.to_string()))?;
         }
+        let mut note = None;
+        if self.broken_on_disk {
+            let mut backup = path.clone().into_os_string();
+            backup.push(".bak");
+            let backup = PathBuf::from(backup);
+            std::fs::rename(path, &backup).map_err(|e| EngineError::Io(e.to_string()))?;
+            self.broken_on_disk = false;
+            note = Some(format!(
+                "the invalid config file was kept as {}",
+                backup.display()
+            ));
+        }
         std::fs::write(path, to_toml(&self.config)).map_err(|e| EngineError::Io(e.to_string()))?;
-        self.config_error = None;
+        self.config_error = note;
         Ok(())
     }
 

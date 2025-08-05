@@ -14,8 +14,8 @@ use windows::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    INPUT, INPUT_0, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY,
-    KEYEVENTF_KEYUP, SendInput, VIRTUAL_KEY,
+    GetAsyncKeyState, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT,
+    KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, SendInput, VIRTUAL_KEY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetMessageW, KBDLLHOOKSTRUCT, MSG, PostThreadMessageW,
@@ -147,6 +147,18 @@ fn hook_thread(ready: &Sender<Result<u32, String>>, events: &Sender<BackendEvent
     }
 }
 
+/// Left/right modifier virtual keys and the modifier each one is.
+const MODIFIER_VKS: [(u16, keypad_core::Modifier); 8] = [
+    (0xA0, keypad_core::Modifier::LShift),
+    (0xA1, keypad_core::Modifier::RShift),
+    (0xA2, keypad_core::Modifier::LCtrl),
+    (0xA3, keypad_core::Modifier::RCtrl),
+    (0xA4, keypad_core::Modifier::LAlt),
+    (0xA5, keypad_core::Modifier::RAlt),
+    (0x5B, keypad_core::Modifier::LSuper),
+    (0x5C, keypad_core::Modifier::RSuper),
+];
+
 /// What the hook does with one key message.
 enum Verdict {
     Pass,
@@ -167,8 +179,18 @@ fn judge(vk: u16, msg: u32) -> Verdict {
     if let Some(d) = c.down.get_mut(slot) {
         *d = state != keypad_core::KeyState::Up;
     }
+    let key = key_from_vk(vk);
     let (decision, enabled, step) = {
         let mut d = c.decider.lock().unwrap_or_else(|e| e.into_inner());
+        // The hook never sees key-ups that happen on the secure desktop (Win+L,
+        // Ctrl+Alt+Del); before deciding an F key, take the real modifier state.
+        if matches!(key, keypad_core::Key::F(_)) && state == keypad_core::KeyState::Down {
+            for (mvk, m) in MODIFIER_VKS {
+                // SAFETY: GetAsyncKeyState only reads the key state.
+                let down = unsafe { GetAsyncKeyState(i32::from(mvk)) } as u16 & 0x8000 != 0;
+                d.set_modifier(m, down);
+            }
+        }
         let decision = d.decide(InputEvent {
             key: key_from_vk(vk),
             state,

@@ -69,12 +69,21 @@ impl Decider {
         }
     }
 
-    /// Takes the new mapping, hotkey and enabled flag; keys already held keep their capture.
+    /// Takes the new mapping, hotkey and step; keys already held keep their capture.
+    /// The mode (`enabled`) is not touched: it only changes through [`Self::set_enabled`]
+    /// and the toggle hotkey, so a config change can never undo a toggle.
     pub fn apply_config(&mut self, cfg: &Config) {
         self.mapping = cfg.mapping;
         self.toggle = cfg.toggle;
         self.brightness_step = cfg.brightness_step;
-        self.enabled = cfg.enabled;
+    }
+
+    /// Sets one modifier's state directly, for when its release was never seen
+    /// (keyboard unplugged, secure desktop on Windows).
+    pub fn set_modifier(&mut self, m: Modifier, down: bool) {
+        if let Some(slot) = self.mods.get_mut(mod_index(m)) {
+            *slot = down;
+        }
     }
 
     pub fn set_enabled(&mut self, on: bool) {

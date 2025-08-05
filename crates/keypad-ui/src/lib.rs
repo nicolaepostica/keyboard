@@ -5,5 +5,6 @@ pub mod theme;
 pub mod tray;
 
 pub use settings::{
-    SettingsApp, TrayOptions, register_ui_commands, run_settings_window, settings_ui,
+    SettingsApp, TrayOptions, hide_commands, is_wayland, register_ui_commands, run_settings_window,
+    settings_ui,
 };

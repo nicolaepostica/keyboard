@@ -1,5 +1,8 @@
 //! keypad: F1–F12 as media keys, without Fn.
 
+// No console window on Windows (autostart would open one, and closing it would kill keypad).
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 mod autostart;
 mod control;
 
@@ -70,7 +73,18 @@ fn run_headless(engine: &Arc<Mutex<Engine>>) {
     }
 }
 
+/// A GUI-subsystem exe has no console; reuse the parent's when started from a terminal,
+/// so `--headless`/`--control` output and `--help` stay visible.
+#[cfg(windows)]
+fn attach_parent_console() {
+    use windows::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole};
+    // SAFETY: plain Win32 call; failure only means there is no parent console.
+    let _ = unsafe { AttachConsole(ATTACH_PARENT_PROCESS) };
+}
+
 fn main() -> anyhow::Result<()> {
+    #[cfg(windows)]
+    attach_parent_console();
     let args = parse_args()?;
     let mut engine = Engine::new(platform_backend(), config_path());
     keypad_ui::register_ui_commands(&mut engine, args.control.is_some())

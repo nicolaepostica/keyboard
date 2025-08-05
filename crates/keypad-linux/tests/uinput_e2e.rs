@@ -105,7 +105,11 @@ fn f8_becomes_play_pause_and_letters_pass_through() {
         vec![(29, 1), (63, 1), (63, 0), (29, 0)]
     );
 
-    // Review Focus 3: unplugging a keyboard ends its thread and is reported.
+    // Review Focus 3: unplugging a keyboard ends its thread and is reported,
+    // and a key still held on it is released on the virtual keyboard: the kernel sends the
+    // releases when the device goes away, and they pass through keypad (final review #3).
+    fake.emit(&[key(29, 1)]).unwrap(); // Ctrl down, never released
+    assert_eq!(read_keys(&mut out, 1), vec![(29, 1)]);
     drop(fake);
     let start = Instant::now();
     let mut removed = false;
@@ -115,6 +119,11 @@ fn f8_becomes_play_pause_and_letters_pass_through() {
             .is_ok_and(|e| format!("{e:?}").contains("DeviceRemoved"));
     }
     assert!(removed, "no DeviceRemoved after unplug");
+    assert_eq!(
+        read_keys(&mut out, 1),
+        vec![(29, 0)],
+        "Ctrl stuck after unplug"
+    );
 
     // Hotplug: a keyboard connected after start is taken over too.
     let mut fake2 = VirtualDevice::builder()

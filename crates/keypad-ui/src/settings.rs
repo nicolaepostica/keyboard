@@ -223,11 +223,35 @@ pub struct TrayOptions {
     pub autostart_supported: bool,
 }
 
+/// True when winit will open a Wayland window (where windows cannot be hidden, only
+/// minimized). Arguments: `$WAYLAND_DISPLAY`, `$WINIT_UNIX_BACKEND`.
+pub fn is_wayland(wayland_display: Option<&str>, winit_backend: Option<&str>) -> bool {
+    wayland_display.is_some_and(|d| !d.is_empty()) && winit_backend != Some("x11")
+}
+
+fn running_on_wayland() -> bool {
+    let display = std::env::var("WAYLAND_DISPLAY").ok();
+    let backend = std::env::var("WINIT_UNIX_BACKEND").ok();
+    cfg!(target_os = "linux") && is_wayland(display.as_deref(), backend.as_deref())
+}
+
+/// How to get the window out of the way: Wayland ignores "hide", so minimize there.
+pub fn hide_commands(wayland: bool) -> Vec<egui::ViewportCommand> {
+    if wayland {
+        vec![egui::ViewportCommand::Minimized(true)]
+    } else {
+        vec![egui::ViewportCommand::Visible(false)]
+    }
+}
+
 /// The eframe application: draws the settings and serves queued app requests.
 pub struct SettingsApp {
     engine: Arc<Mutex<Engine>>,
     tray: Option<Tray>,
     quit: bool,
+    wayland: bool,
+    /// On Wayland the window cannot start hidden; minimize it on the first tick instead.
+    minimize_on_start: bool,
 }
 
 impl SettingsApp {
@@ -236,7 +260,35 @@ impl SettingsApp {
             engine,
             tray: None,
             quit: false,
+            wayland: running_on_wayland(),
+            minimize_on_start: false,
         }
+    }
+
+    /// Everything that must keep happening while the window is hidden: backend events,
+    /// queued requests, the tray state, close-to-tray. eframe calls it through `logic`.
+    pub fn tick(&mut self, ctx: &egui::Context) {
+        let engine = self.engine.clone();
+        let mut e = engine.lock().unwrap_or_else(|e| e.into_inner());
+        self.serve_requests(ctx, &mut e);
+        if let Some(t) = self.tray.as_mut() {
+            t.sync(&e);
+        }
+        let hide = |ctx: &egui::Context, wayland| {
+            for cmd in hide_commands(wayland) {
+                ctx.send_viewport_cmd(cmd);
+            }
+        };
+        if std::mem::take(&mut self.minimize_on_start) {
+            hide(ctx, self.wayland);
+        }
+        // With a tray, closing the window hides it; Quit is in the tray menu.
+        if self.tray.is_some() && !self.quit && ctx.input(|i| i.viewport().close_requested()) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            hide(ctx, self.wayland);
+        }
+        // Keeps `logic` running while hidden (hotkey toggles, device messages).
+        ctx.request_repaint_after(Duration::from_millis(250));
     }
 
     fn serve_requests(&mut self, ctx: &egui::Context, engine: &mut Engine) {
@@ -249,6 +301,7 @@ impl SettingsApp {
                 }
                 AppRequest::ShowSettings => {
                     ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
                     ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
                 }
                 AppRequest::Screenshot(path) => {
@@ -268,23 +321,18 @@ impl SettingsApp {
 }
 
 impl eframe::App for SettingsApp {
+    /// Runs before every `ui` and also while the window is hidden.
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.tick(ctx);
+    }
+
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let engine = self.engine.clone();
         let mut e = engine.lock().unwrap_or_else(|e| e.into_inner());
-        let ctx = ui.ctx().clone();
-        self.serve_requests(&ctx, &mut e);
-        if let Some(t) = self.tray.as_mut() {
-            t.sync(&e);
-        }
-        // With a tray, closing the window hides it; Quit is in the tray menu.
-        if self.tray.is_some() && !self.quit && ctx.input(|i| i.viewport().close_requested()) {
-            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
-        }
         egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| settings_ui(ui, &mut e));
         });
-        ctx.request_repaint_after(Duration::from_millis(100));
+        ui.ctx().request_repaint_after(Duration::from_millis(100));
     }
 }
 
@@ -300,7 +348,8 @@ pub fn run_settings_window(
             .with_title("keypad")
             .with_inner_size([520.0, 720.0])
             .with_min_inner_size([420.0, 480.0])
-            .with_visible(!(minimized && tray.is_some())),
+            // Wayland cannot start a window hidden; it is minimized on the first tick.
+            .with_visible(!(minimized && tray.is_some() && !running_on_wayland())),
         ..Default::default()
     };
     let options = match crate::theme::app_icon() {
@@ -322,6 +371,7 @@ pub fn run_settings_window(
             cc.egui_ctx
                 .set_visuals_of(egui::Theme::Light, crate::theme::visuals(false));
             let mut app = SettingsApp::new(engine.clone());
+            app.minimize_on_start = minimized && tray.is_some() && app.wayland;
             if let Some(opts) = tray {
                 let built = {
                     let e = engine.lock().unwrap_or_else(|e| e.into_inner());

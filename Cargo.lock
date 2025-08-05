@@ -2040,6 +2040,7 @@ dependencies = [
  "keypad-windows",
  "proptest",
  "serde_json",
+ "windows",
 ]
 
 [[package]]

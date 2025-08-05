@@ -67,9 +67,19 @@ fn set(on: bool) -> Result<(), String> {
 #[cfg(windows)]
 const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
 
+/// `reg` without a console window flashing up.
+#[cfg(windows)]
+fn reg() -> std::process::Command {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let mut cmd = std::process::Command::new("reg");
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd
+}
+
 #[cfg(windows)]
 pub fn is_enabled() -> bool {
-    std::process::Command::new("reg")
+    reg()
         .args(["query", RUN_KEY, "/v", "keypad"])
         .output()
         .is_ok_and(|o| o.status.success())
@@ -77,7 +87,7 @@ pub fn is_enabled() -> bool {
 
 #[cfg(windows)]
 fn set(on: bool) -> Result<(), String> {
-    let mut cmd = std::process::Command::new("reg");
+    let mut cmd = reg();
     if on {
         let exe = std::env::current_exe().map_err(|e| e.to_string())?;
         cmd.args([

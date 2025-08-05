@@ -159,3 +159,23 @@ fn decider_exposes_brightness_step() {
     };
     assert_eq!(Decider::new(&cfg, &[]).brightness_step(), 25);
 }
+
+// Final review #4: mode changes only through set_enabled, never via apply_config.
+#[test]
+fn apply_config_keeps_the_current_mode() {
+    let mut d = decider();
+    d.set_enabled(false);
+    d.apply_config(&Config::default()); // default has enabled = true
+    assert!(!d.enabled());
+}
+
+// Final review #3/#7: a modifier whose release was lost can be cleared.
+#[test]
+fn set_modifier_clears_a_stuck_modifier() {
+    let mut d = decider();
+    d.decide(down(Key::Mod(Modifier::LSuper)));
+    assert_eq!(d.decide(down(Key::F(8))), Decision::Pass);
+    d.decide(up(Key::F(8)));
+    d.set_modifier(Modifier::LSuper, false);
+    assert_eq!(d.decide(down(Key::F(8))), Decision::Emit(Action::PlayPause));
+}
