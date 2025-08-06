@@ -163,7 +163,7 @@ pub fn unmade_images(images: &[String], generators: &[String]) -> Vec<String> {
     images
         .iter()
         .filter(|img| {
-            let name = img.rsplit('/').next().unwrap_or(img);
+            let name = img.rsplit(['/', '\\']).next().unwrap_or(img);
             !generators.iter().any(|g| g.contains(name))
         })
         .cloned()
@@ -275,6 +275,16 @@ mod tests {
             unmade_images(&images, &generators),
             vec!["docs/assets/shot.png".to_string()]
         );
+    }
+
+    #[test]
+    fn windows_paths_are_matched_by_file_name() {
+        let images = vec![
+            "assets\\icon.png".to_string(),
+            "docs/assets\\shot.png".to_string(),
+        ];
+        let generators = vec!["icon.png shot.png".to_string()];
+        assert!(unmade_images(&images, &generators).is_empty());
     }
 
     #[test]

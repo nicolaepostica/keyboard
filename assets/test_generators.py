@@ -8,9 +8,20 @@ import sys
 import tempfile
 import unittest
 
-from PIL import Image
+from PIL import Image, ImageChops, ImageStat
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+
+def assert_same_picture(test, made: pathlib.Path, committed: pathlib.Path, hint: str) -> None:
+    """Committed images must match a fresh render. Compared by pixels, not bytes: other
+    Pillow/zlib/FreeType versions (CI runners) encode and anti-alias slightly differently."""
+    a = Image.open(made).convert("RGBA")
+    b = Image.open(committed).convert("RGBA")
+    test.assertEqual(a.size, b.size, f"{committed.name}: size changed; {hint}")
+    diff = ImageChops.difference(a, b)
+    mean = sum(ImageStat.Stat(diff).mean) / 4
+    test.assertLess(mean, 1.5, f"{committed.name} is stale (mean diff {mean:.2f}); {hint}")
 
 
 def run_icon(out: pathlib.Path) -> None:
@@ -41,8 +52,7 @@ class IconTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             run_icon(pathlib.Path(d))
             for rel in ["assets/icon.png", "assets/keyboard.ico", "docs/assets/keyboard-mark.png"]:
-                self.assertEqual((pathlib.Path(d) / rel).read_bytes(), (ROOT / rel).read_bytes(),
-                                 f"{rel} is stale: run python3 assets/icon.py")
+                assert_same_picture(self, pathlib.Path(d) / rel, ROOT / rel, "run python3 assets/icon.py")
 
 
 class BannerTest(unittest.TestCase):
@@ -62,8 +72,7 @@ class BannerTest(unittest.TestCase):
             self.run_banner(pathlib.Path(b))
             rel = "docs/assets/keyboard-banner.png"
             self.assertEqual((pathlib.Path(a) / rel).read_bytes(), (pathlib.Path(b) / rel).read_bytes())
-            self.assertEqual((pathlib.Path(a) / rel).read_bytes(), (ROOT / rel).read_bytes(),
-                             "banner is stale: run python3 assets/banner.py")
+            assert_same_picture(self, pathlib.Path(a) / rel, ROOT / rel, "run python3 assets/banner.py")
 
 
 if __name__ == "__main__":
