@@ -13,11 +13,20 @@ from PIL import Image, ImageChops, ImageStat
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
+def load(path: pathlib.Path) -> Image.Image:
+    """Opens and fully reads an image, closing the file (Windows cannot delete open files)."""
+    with Image.open(path) as im:
+        im.load()
+        out = im.copy()
+        out.info.update(im.info)
+        return out
+
+
 def assert_same_picture(test, made: pathlib.Path, committed: pathlib.Path, hint: str) -> None:
     """Committed images must match a fresh render. Compared by pixels, not bytes: other
     Pillow/zlib/FreeType versions (CI runners) encode and anti-alias slightly differently."""
-    a = Image.open(made).convert("RGBA")
-    b = Image.open(committed).convert("RGBA")
+    a = load(made).convert("RGBA")
+    b = load(committed).convert("RGBA")
     test.assertEqual(a.size, b.size, f"{committed.name}: size changed; {hint}")
     diff = ImageChops.difference(a, b)
     mean = sum(ImageStat.Stat(diff).mean) / 4
@@ -33,11 +42,12 @@ class IconTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             out = pathlib.Path(d)
             run_icon(out)
-            self.assertEqual(Image.open(out / "assets" / "icon.png").size, (256, 256))
-            ico = Image.open(out / "assets" / "keyboard.ico")
-            self.assertIn((16, 16), ico.info["sizes"])
-            self.assertIn((256, 256), ico.info["sizes"])
-            mark = Image.open(out / "docs" / "assets" / "keyboard-mark.png")
+            self.assertEqual(load(out / "assets" / "icon.png").size, (256, 256))
+            with Image.open(out / "assets" / "keyboard.ico") as ico:
+                sizes = ico.info["sizes"]
+            self.assertIn((16, 16), sizes)
+            self.assertIn((256, 256), sizes)
+            mark = load(out / "docs" / "assets" / "keyboard-mark.png")
             self.assertEqual(mark.mode, "RGBA")
             self.assertEqual(mark.getpixel((0, 0))[3], 0, "mark background must be transparent")
 
@@ -62,7 +72,7 @@ class BannerTest(unittest.TestCase):
     def test_size_and_transparency(self):
         with tempfile.TemporaryDirectory() as d:
             self.run_banner(pathlib.Path(d))
-            im = Image.open(pathlib.Path(d) / "docs" / "assets" / "keyboard-banner.png")
+            im = load(pathlib.Path(d) / "docs" / "assets" / "keyboard-banner.png")
             self.assertEqual(im.size, (2430, 420))
             self.assertEqual(im.getpixel((0, 0))[3], 0)
 
