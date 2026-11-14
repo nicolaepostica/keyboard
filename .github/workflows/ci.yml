@@ -30,6 +30,39 @@ jobs:
       - name: cargo xtask ci
         run: cargo xtask ci
 
+  build:
+    name: release build (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x86_64
+            os: windows-latest
+            exe: keyboard.exe
+          - name: linux-x86_64
+            os: ubuntu-latest
+            exe: keyboard
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Toolchain (from rust-toolchain.toml)
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: cargo build --release
+        run: cargo build --release --locked -p keyboard
+      - name: Collect the files
+        shell: bash
+        run: |
+          mkdir dist
+          cp "target/release/${{ matrix.exe }}" README.md LICENSE-MIT LICENSE-APACHE dist/
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: keyboard-${{ matrix.name }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
   linux-kernel:
     name: real-kernel test (uinput)
     runs-on: ubuntu-latest
