@@ -145,7 +145,9 @@ External monitors do not support WMI brightness; their brightness keys report an
 window. **Start at login** adds `keyboard` under
 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 
-**Note: cross-compiled and linked for Windows, not yet run on a real Windows machine.**
+**Note: tested on a real Windows 10 machine with the release build from CI: F8–F12 become media
+keys (play/pause, next track, mute, volume). F7 (previous track) and brightness (F1/F2) are not
+yet tested there.**
 
 ---
 
