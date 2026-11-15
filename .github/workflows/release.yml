@@ -23,7 +23,8 @@ jobs:
           - name: windows-x86_64
             os: windows-latest
           - name: linux-x86_64
-            os: ubuntu-latest
+            # Same runner as the CI packages job: built against glibc 2.39 (see ci.yml).
+            os: ubuntu-24.04
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:

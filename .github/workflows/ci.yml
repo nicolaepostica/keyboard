@@ -39,7 +39,9 @@ jobs:
           - name: windows-x86_64
             os: windows-latest
           - name: linux-x86_64
-            os: ubuntu-latest
+            # Not ubuntu-latest: the binary needs the glibc it was built with, and 24.04's
+            # (2.39) keeps the .deb/.rpm installable on Ubuntu 24.04+, Debian 13, Fedora 40+.
+            os: ubuntu-24.04
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
@@ -88,6 +90,11 @@ jobs:
         run: |
           sudo apt-get install -y ./dist/keyboard_*.deb
           dpkg -s keyboard | grep -E '^(Version|Depends):'
+          glibc=$(dpkg -s keyboard | sed -n 's/^Depends:.*libc6 (>= \([0-9.]*\)).*/\1/p')
+          if [ -n "$glibc" ] && dpkg --compare-versions "$glibc" gt 2.39; then
+            echo "::error::the .deb needs glibc $glibc; Ubuntu 24.04 and Debian 13 have older ones"
+            exit 1
+          fi
           keyboard --help
           test -f /usr/share/applications/keyboard.desktop
           test -f /usr/share/icons/hicolor/256x256/apps/keyboard.png
