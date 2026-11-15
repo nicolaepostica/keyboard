@@ -23,8 +23,17 @@ keyboard does the opposite. This app, **keyboard**, makes every keyboard behave 
 
 ## Quick start
 
-Download `keyboard.exe` (Windows, `.zip`) or `keyboard` (Linux, `.tar.gz`) from
-[Releases](https://github.com/nicolaepostica/keyboard/releases), or build from source.
+Download from [Releases](https://github.com/nicolaepostica/keyboard/releases), or build from source:
+
+| System | Package |
+|---|---|
+| Windows | `keyboard-vX.Y.Z-windows-x86_64-setup.exe`: installer, no admin rights needed; or the portable `.zip` |
+| Debian, Ubuntu | `keyboard_X.Y.Z-1_amd64.deb`: `sudo apt install ./keyboard_*.deb` |
+| Fedora, openSUSE | `keyboard-X.Y.Z-1.x86_64.rpm`: `sudo dnf install ./keyboard-*.rpm` |
+| other Linux | the portable `.tar.gz` |
+
+The `.deb` and `.rpm` add a menu entry and the `/dev/uinput` udev rule; you still join the `input`
+group once (see [Linux](#linux)).
 
 ### From source
 
@@ -127,7 +136,8 @@ sudo udevadm control --reload && sudo udevadm trigger
 ```
 
 Then log out and back in. Members of the `input` group can read every keyboard, which is fine on a
-personal laptop.
+personal laptop. With the `.deb` or `.rpm` package the udev rule is already installed (in
+`/usr/lib/udev/rules.d/`), so only the `usermod` line is needed.
 
 - **Tray:** KDE shows the icon natively. GNOME needs the *AppIndicator and KStatusNotifierItem
   Support* extension.
@@ -161,8 +171,10 @@ yet tested there.**
 | `crates/keyboard-windows` | `WH_KEYBOARD_LL` hook, `SendInput`, WMI brightness |
 | `crates/keyboard-engine` | session, command registry, undo/redo, panic guard, config file |
 | `crates/keyboard-ui` | settings window (egui), tray icon, theme |
-| `crates/keyboard` | the binary: arguments, control channel, start at login |
-| `xtask` | `cargo xtask ci`: fmt, clippy, tests, layer check, asset check, wasm and cross-platform builds |
+| `crates/keyboard` | the binary: arguments, control channel, start at login; `build.rs` embeds the icon in `keyboard.exe` |
+| `xtask` | `cargo xtask ci`: fmt, clippy, tests, layer check, asset check, wasm and cross-platform builds; `cargo xtask package`: the packages |
+| `packaging/windows/keyboard.iss` | the Windows installer (Inno Setup 6) |
+| `packaging/linux/` | `.desktop` entry, uinput udev rule and install scripts for the `.deb` and `.rpm` |
 | `assets/theme.toml` | the colours used by the app, the icon and the banner |
 | `assets/icon.py` | draws `assets/icon.png`, `assets/keyboard.ico`, `docs/assets/keyboard-mark.png` |
 | `assets/banner.py` | draws `docs/assets/keyboard-banner.png` |
@@ -190,8 +202,14 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The `Release` workflow tests and builds Windows and Linux packages, then publishes them with a
-`SHA256SUMS.txt` as a GitHub release. A tag that does not match the version fails the workflow.
+The `Release` workflow tests, runs `cargo xtask package` on Windows and Linux, then publishes the
+packages with a `SHA256SUMS.txt` as a GitHub release. A tag that does not match the version fails
+the workflow. The CI workflow builds the same packages on every push, installs them, runs
+`keyboard --help` and uninstalls them; download them from the run's artifacts to try a change.
+
+`cargo xtask package` writes to `dist/`: on Windows the `.zip` and the installer (needs
+[Inno Setup 6](https://jrsoftware.org/isinfo.php)), on Linux the `.tar.gz`, `.deb` and `.rpm`
+(needs `cargo install cargo-deb cargo-generate-rpm`).
 
 ## License
 

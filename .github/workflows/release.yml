@@ -22,10 +22,8 @@ jobs:
         include:
           - name: windows-x86_64
             os: windows-latest
-            exe: keyboard.exe
           - name: linux-x86_64
             os: ubuntu-latest
-            exe: keyboard
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
@@ -43,23 +41,21 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: cargo test
         run: cargo test --workspace --locked
-      - name: cargo build --release
-        run: cargo build --release --locked -p keyboard
-      - name: Package
-        shell: bash
+      - name: Packaging tools (Linux)
+        if: runner.os == 'Linux'
+        run: cargo install --locked cargo-deb@3.8.0 cargo-generate-rpm@0.21.1
+      - name: Packaging tools (Windows)
+        if: runner.os == 'Windows'
         run: |
-          pkg="keyboard-$GITHUB_REF_NAME-${{ matrix.name }}"
-          mkdir -p "$pkg" out
-          cp "target/release/${{ matrix.exe }}" README.md LICENSE-MIT LICENSE-APACHE "$pkg/"
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            7z a -tzip -bso0 "out/$pkg.zip" "$pkg"
-          else
-            tar -czf "out/$pkg.tar.gz" "$pkg"
-          fi
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+      - name: cargo xtask package
+        run: cargo xtask package
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-${{ matrix.name }}
-          path: out/
+          path: dist/
           if-no-files-found: error
           retention-days: 7
 

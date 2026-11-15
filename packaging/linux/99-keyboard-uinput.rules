@@ -1,0 +1,3 @@
+# keyboard writes media keys through one virtual uinput keyboard; members of the `input`
+# group (who can already read /dev/input) may open /dev/uinput.
+KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"

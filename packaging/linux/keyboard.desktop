@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=keyboard
+GenericName=Function keys as media keys
+Comment=F1–F12 as media keys, without Fn
+Exec=keyboard
+Icon=keyboard
+Terminal=false
+Categories=Utility;Settings;
+Keywords=fn;media;function;keys;brightness;volume;
+StartupNotify=false

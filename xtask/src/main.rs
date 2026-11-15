@@ -1,4 +1,4 @@
-//! Project automation: `cargo xtask ci | layers | assets | wasm | cross`.
+//! Project automation: `cargo xtask ci | layers | assets | wasm | cross | package`.
 
 use std::process::Command;
 
@@ -249,6 +249,133 @@ fn ci() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Version of the `keyboard` package, from `cargo metadata`.
+fn app_version() -> anyhow::Result<String> {
+    let output = Command::new("cargo")
+        .args(["metadata", "--format-version", "1", "--no-deps"])
+        .output()
+        .context("running cargo metadata")?;
+    if !output.status.success() {
+        bail!("cargo metadata failed");
+    }
+    let meta: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    meta.get("packages")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+        .find(|p| p.get("name").and_then(|n| n.as_str()) == Some("keyboard"))
+        .and_then(|p| p.get("version"))
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+        .context("package `keyboard` not found in cargo metadata")
+}
+
+/// File name stem of the portable archive, e.g. `keyboard-v0.1.0-windows-x86_64`.
+pub fn archive_stem(version: &str, platform: &str) -> String {
+    format!("keyboard-v{version}-{platform}-x86_64")
+}
+
+/// Inno Setup's compiler: `$ISCC`, else `iscc` on PATH, else the default install folder.
+fn iscc() -> String {
+    if let Ok(path) = std::env::var("ISCC") {
+        return path;
+    }
+    let on_path = Command::new("iscc")
+        .arg("/?")
+        .output()
+        .is_ok_and(|o| o.status.success() || !o.stdout.is_empty());
+    if on_path {
+        return "iscc".to_string();
+    }
+    r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe".to_string()
+}
+
+/// Copies the binary and the docs into `dist/<stem>/` and archives that folder.
+fn portable_archive(stem: &str, exe: &str, archive: &str) -> anyhow::Result<()> {
+    let stage = std::path::Path::new("dist").join(stem);
+    std::fs::create_dir_all(&stage)?;
+    for file in [
+        format!("target/release/{exe}"),
+        "README.md".to_string(),
+        "LICENSE-MIT".to_string(),
+        "LICENSE-APACHE".to_string(),
+    ] {
+        let name = std::path::Path::new(&file)
+            .file_name()
+            .context("file without a name")?;
+        std::fs::copy(&file, stage.join(name)).with_context(|| format!("copying {file}"))?;
+    }
+    // -a picks the format from the extension. On Windows only its own bsdtar writes zip
+    // files (Git's GNU tar on PATH does not), so name it explicitly.
+    let tar = if cfg!(windows) {
+        let root = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".to_string());
+        format!(r"{root}\System32\tar.exe")
+    } else {
+        "tar".to_string()
+    };
+    run(&tar, &["-a", "-c", "-f", archive, "-C", "dist", stem])?;
+    std::fs::remove_dir_all(&stage)?;
+    Ok(())
+}
+
+/// Builds the release binary and this platform's packages into `dist/`:
+/// Windows: portable `.zip` and Inno Setup installer; Linux: `.tar.gz`, `.deb` and `.rpm`.
+fn package() -> anyhow::Result<()> {
+    let version = app_version()?;
+    if std::path::Path::new("dist").exists() {
+        std::fs::remove_dir_all("dist").context("removing dist/")?;
+    }
+    std::fs::create_dir_all("dist")?;
+    run(
+        "cargo",
+        &["build", "--release", "--locked", "-p", "keyboard"],
+    )?;
+
+    if cfg!(windows) {
+        let stem = archive_stem(&version, "windows");
+        portable_archive(&stem, "keyboard.exe", &format!("dist/{stem}.zip"))?;
+        let bin_dir = std::fs::canonicalize("target/release")?;
+        let out_dir = std::fs::canonicalize("dist")?;
+        let strip = |p: &std::path::Path| {
+            let s = p.display().to_string();
+            s.strip_prefix(r"\\?\").map(str::to_string).unwrap_or(s)
+        };
+        run(
+            &iscc(),
+            &[
+                "/Q",
+                &format!("/DAppVersion={version}"),
+                &format!("/DBinDir={}", strip(&bin_dir)),
+                &format!("/DOutDir={}", strip(&out_dir)),
+                "packaging/windows/keyboard.iss",
+            ],
+        )?;
+    } else if cfg!(target_os = "linux") {
+        let stem = archive_stem(&version, "linux");
+        portable_archive(&stem, "keyboard", &format!("dist/{stem}.tar.gz"))?;
+        run(
+            "cargo",
+            &["deb", "-p", "keyboard", "--no-build", "--output", "dist/"],
+        )?;
+        run(
+            "cargo",
+            // generate-rpm's -p is the crate's folder (despite its help text saying "name").
+            &["generate-rpm", "-p", "crates/keyboard", "--output", "dist/"],
+        )?;
+    } else {
+        bail!("package: only Windows and Linux packages exist");
+    }
+
+    for entry in std::fs::read_dir("dist")?.flatten() {
+        let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+        eprintln!(
+            "package: dist/{} ({size} bytes)",
+            entry.file_name().to_string_lossy()
+        );
+    }
+    Ok(())
+}
+
 fn main() -> anyhow::Result<()> {
     match std::env::args().nth(1).as_deref() {
         Some("ci") => ci(),
@@ -256,13 +383,26 @@ fn main() -> anyhow::Result<()> {
         Some("wasm") => wasm(),
         Some("cross") => cross(),
         Some("assets") => assets(),
-        _ => bail!("usage: cargo xtask <ci|layers|assets|wasm|cross>"),
+        Some("package") => package(),
+        _ => bail!("usage: cargo xtask <ci|layers|assets|wasm|cross|package>"),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{check_layers, unmade_images};
+    use super::{archive_stem, check_layers, unmade_images};
+
+    #[test]
+    fn archive_names_carry_version_and_platform() {
+        assert_eq!(
+            archive_stem("0.1.0", "windows"),
+            "keyboard-v0.1.0-windows-x86_64"
+        );
+        assert_eq!(
+            archive_stem("1.2.3", "linux"),
+            "keyboard-v1.2.3-linux-x86_64"
+        );
+    }
 
     #[test]
     fn image_without_generator_is_reported() {

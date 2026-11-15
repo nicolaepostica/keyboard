@@ -5,9 +5,49 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
+description = "F1-F12 as media keys, without Fn"
+repository = "https://github.com/nicolaepostica/keyboard"
 
 [lints]
 workspace = true
+
+[build-dependencies]
+embed-resource = "3.0.12"
+
+# `cargo deb -p keyboard`: paths are relative to this crate's folder.
+[package.metadata.deb]
+maintainer = "Nicolae Postica"
+copyright = "2025, Nicolae Postica"
+extended-description = """\
+Makes F1-F12 behave like the media keys of a Mac keyboard: brightness, play/pause, \
+previous/next track, mute and volume, without holding Fn. F keys with a modifier \
+(Alt+F4, Ctrl+F5) stay plain F keys. Users need to be in the `input` group."""
+section = "utils"
+priority = "optional"
+depends = "$auto"
+maintainer-scripts = "../../packaging/linux/debian/"
+assets = [
+    ["target/release/keyboard", "usr/bin/", "755"],
+    ["../../packaging/linux/keyboard.desktop", "usr/share/applications/", "644"],
+    ["../../assets/icon.png", "usr/share/icons/hicolor/256x256/apps/keyboard.png", "644"],
+    ["../../packaging/linux/99-keyboard-uinput.rules", "usr/lib/udev/rules.d/", "644"],
+    ["../../README.md", "usr/share/doc/keyboard/README.md", "644"],
+]
+
+# `cargo generate-rpm -p crates/keyboard`, run from the workspace root: paths are relative
+# to the workspace root.
+[package.metadata.generate-rpm]
+summary = "F1-F12 as media keys, without Fn"
+post_install_script = "packaging/linux/rpm/post_install.sh"
+assets = [
+    { source = "target/release/keyboard", dest = "/usr/bin/keyboard", mode = "755" },
+    { source = "packaging/linux/keyboard.desktop", dest = "/usr/share/applications/keyboard.desktop", mode = "644" },
+    { source = "assets/icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/keyboard.png", mode = "644" },
+    { source = "packaging/linux/99-keyboard-uinput.rules", dest = "/usr/lib/udev/rules.d/99-keyboard-uinput.rules", mode = "644" },
+    { source = "README.md", dest = "/usr/share/doc/keyboard/README.md", mode = "644", doc = true },
+    { source = "LICENSE-MIT", dest = "/usr/share/licenses/keyboard/LICENSE-MIT", mode = "644", doc = true },
+    { source = "LICENSE-APACHE", dest = "/usr/share/licenses/keyboard/LICENSE-APACHE", mode = "644", doc = true },
+]
 
 [dependencies]
 anyhow = "1"
