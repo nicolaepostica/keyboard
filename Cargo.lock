@@ -2034,7 +2034,7 @@ dependencies = [
 
 [[package]]
 name = "keyboard"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "embed-resource",
@@ -2050,7 +2050,7 @@ dependencies = [
 
 [[package]]
 name = "keyboard-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "proptest",
  "serde",
@@ -2060,7 +2060,7 @@ dependencies = [
 
 [[package]]
 name = "keyboard-engine"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dirs",
  "keyboard-core",
@@ -2071,7 +2071,7 @@ dependencies = [
 
 [[package]]
 name = "keyboard-linux"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "evdev",
  "inotify",
@@ -2090,7 +2090,7 @@ dependencies = [
 
 [[package]]
 name = "keyboard-ui"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "eframe",
  "egui",
@@ -2107,7 +2107,7 @@ dependencies = [
 
 [[package]]
 name = "keyboard-windows"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "keyboard-core",
  "serde",
@@ -5010,7 +5010,7 @@ checksum = "e450f9b2ed1dff33c94c12589a87338689467b9c4f5d8a5710bd09a847d2c8a7"
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "serde_json",
