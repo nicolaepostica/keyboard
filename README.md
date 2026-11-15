@@ -23,7 +23,8 @@ keyboard does the opposite. This app, **keyboard**, makes every keyboard behave 
 
 ## Quick start
 
-There are no release packages yet; build from source.
+Download `keyboard.exe` (Windows, `.zip`) or `keyboard` (Linux, `.tar.gz`) from
+[Releases](https://github.com/nicolaepostica/keyboard/releases), or build from source.
 
 ### From source
 
@@ -179,6 +180,18 @@ cargo test -p keyboard-linux -- --ignored             # real-kernel test: needs 
 The real-kernel test creates a fake keyboard with uinput and checks that F8 becomes play/pause,
 letters and Ctrl+F5 pass through, an unplugged keyboard is released and a newly plugged one is
 taken over.
+
+## Releasing
+
+Set `version` in `Cargo.toml`, then push a matching tag:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The `Release` workflow tests and builds Windows and Linux packages, then publishes them with a
+`SHA256SUMS.txt` as a GitHub release. A tag that does not match the version fails the workflow.
 
 ## License
 
